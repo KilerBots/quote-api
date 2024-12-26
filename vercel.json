@@ -3,8 +3,7 @@
   "builds": [
     {
       "src": "index.js",
-      "use": "@vercel/node",
-      "nodeVersion": "18.12.1"
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -12,5 +11,10 @@
       "src": "/(.*)",
       "dest": "/index.js"
     }
-  ]
+  ],
+  "build": {
+    "env": {
+      "NODE_VERSION": "18.12.1"
+    }
+  }
 }

@@ -9,7 +9,7 @@
     "lint:fix": "node_modules/.bin/eslint --fix --ext js ."
   },
   "engines": {
-    "node": "18.12.1"
+    "node": "20"
   },
   "repository": {
     "type": "git",

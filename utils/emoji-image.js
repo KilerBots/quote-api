@@ -1,12 +1,19 @@
 const path = require('path')
 const fs = require('fs')
+const axios = require('axios') // Digunakan untuk fetch data dari URL
 const loadImageFromUrl = require('./image-load-url')
 const EmojiDbLib = require('emoji-db')
 const promiseAllStepN = require('./promise-concurrent')
 
 const emojiDb = new EmojiDbLib({ useDefaultDb: true })
 
-const emojiJFilesDir = '../assets/emoji/'
+const emojiJsonByBrand = {
+  apple: 'https://raw.githubusercontent.com/LyoSU/quote-api/refs/heads/master/assets/emoji/emoji-apple-image.json',
+  google: 'https://raw.githubusercontent.com/LyoSU/quote-api/refs/heads/master/assets/emoji/emoji-google-image.json',
+  twitter: 'https://raw.githubusercontent.com/LyoSU/quote-api/refs/heads/master/assets/emoji/emoji-twitter-image.json',
+  joypixels: 'https://raw.githubusercontent.com/LyoSU/quote-api/refs/heads/master/assets/emoji/emoji-joypixels-image.json',
+  blob: 'https://raw.githubusercontent.com/LyoSU/quote-api/refs/heads/master/assets/emoji/emoji-blob-image.json'
+}
 
 const brandFoledIds = {
   apple: 325,
@@ -14,14 +21,6 @@ const brandFoledIds = {
   twitter: 322,
   joypixels: 340,
   blob: 56
-}
-
-const emojiJsonByBrand = {
-  apple: 'emoji-apple-image.json',
-  google: 'emoji-google-image.json',
-  twitter: 'emoji-twitter-image.json',
-  joypixels: 'emoji-joypixels-image.json',
-  blob: 'emoji-blob-image.json'
 }
 
 let emojiImageByBrand = {
@@ -32,16 +31,21 @@ let emojiImageByBrand = {
   blob: []
 }
 
-async function downloadEmoji (brand) {
-  console.log('emoji image load start')
+async function fetchEmojiJsonFromUrl(url) {
+  try {
+    const response = await axios.get(url)
+    return response.data
+  } catch (error) {
+    console.error(`Failed to fetch JSON from ${url}:`, error.message)
+    return null
+  }
+}
 
+async function downloadEmoji(brand) {
+  console.log(`Downloading emoji images for brand: ${brand}`)
+
+  const emojiJsonUrl = emojiJsonByBrand[brand]
   const emojiImage = emojiImageByBrand[brand]
-
-  const emojiJsonFile = path.resolve(
-    __dirname,
-    emojiJFilesDir + emojiJsonByBrand[brand]
-  )
-
   const dbData = emojiDb.dbData
   const dbArray = Object.keys(dbData)
   const emojiPromiseArray = []
@@ -72,35 +76,27 @@ async function downloadEmoji (brand) {
     }
   }
 
-  const donwloadResult = await promiseAllStepN(200)(emojiPromiseArray)
+  const downloadResult = await promiseAllStepN(200)(emojiPromiseArray)
 
-  for (const emojiData of donwloadResult) {
+  for (const emojiData of downloadResult) {
     if (emojiData) emojiImage[emojiData.key] = emojiData.base64
   }
 
-  if (Object.keys(emojiImage).length > 0) {
-    const emojiJson = JSON.stringify(emojiImage, null, 2)
-
-    fs.writeFile(emojiJsonFile, emojiJson, (err) => {
-      if (err) return console.log(err)
-    })
-  }
-
-  console.log('emoji image load end')
+  console.log(`Finished downloading emojis for brand: ${brand}`)
 }
 
-for (const brand in emojiJsonByBrand) {
-  const emojiJsonFile = path.resolve(
-    __dirname,
-    emojiJFilesDir + emojiJsonByBrand[brand]
-  )
+(async function initializeEmojiData() {
+  for (const brand in emojiJsonByBrand) {
+    const emojiJsonUrl = emojiJsonByBrand[brand]
+    console.log(`Fetching emoji JSON for brand: ${brand} from ${emojiJsonUrl}`)
 
-  try {
-    if (fs.existsSync(emojiJsonFile)) emojiImageByBrand[brand] = require(emojiJsonFile)
-  } catch (error) {
-    console.log(error)
+    const emojiData = await fetchEmojiJsonFromUrl(emojiJsonUrl)
+    if (emojiData) {
+      emojiImageByBrand[brand] = emojiData
+    } else {
+      console.error(`Failed to load emoji data for brand: ${brand}`)
+    }
   }
-  // downloadEmoji(brand)
-}
+})()
 
 module.exports = emojiImageByBrand
